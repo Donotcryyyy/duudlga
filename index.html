@@ -218,7 +218,7 @@
   .subgrid{
     margin-top: 0;
     display:grid;
-    grid-template-columns: 0.8fr 0.8fr 1.2fr;
+    grid-template-columns: 0.7fr 0.7fr 1.4fr;
     gap: 16px;
   }
   @media (max-width: 1100px){ .subgrid{ grid-template-columns: 1fr 1fr; } }
@@ -366,6 +366,8 @@
       <div class="panel">
         <h2>Харилцагчийн хэлтэс тус бүрээр <select class="deptSelect" id="deptSelect"></select></h2>
         <div class="desc">Хэлтэс сонгож, тухайн хэлтсийн дуудлагын нарийвчилсан харагдацыг үзнэ үү</div>
+        <div class="desc" style="margin-top:-8px; margin-bottom:6px; font-weight:600;" id="deptTop10Label">Хамгийн их дуудлага ирсэн хэлтэс (топ 10)</div>
+        <div id="deptTop10"></div>
         <div id="deptDetail"></div>
       </div>
     </div>
@@ -637,6 +639,18 @@ function render(fileName){
     </div>
   `).join('') : '<div class="empty-note">Өгөгдөл алга</div>';
 
+  // Department top 10 (by call volume)
+  const deptTop10 = deptCounts.slice(0, 10);
+  const maxDept = deptTop10.length ? deptTop10[0][1] : 1;
+  document.getElementById('deptTop10').innerHTML = deptTop10.length ? deptTop10.map((d, i) => `
+    <div class="bar-row">
+      <div class="rank">${i+1}</div>
+      <div class="label" title="${escapeHtml(d[0])}">${escapeHtml(d[0])}</div>
+      <div class="bar-track"><div class="bar-fill teal" style="width:${(d[1]/maxDept*100).toFixed(1)}%"></div></div>
+      <div class="bar-count">${d[1]}</div>
+    </div>
+  `).join('') : '<div class="empty-note">Өгөгдөл алга</div>';
+
   // Department selector + detail
   const deptSelect = document.getElementById('deptSelect');
   deptSelect.innerHTML = `<option value="__all__">Бүх хэлтэс</option>` +
@@ -658,6 +672,7 @@ function render(fileName){
     const maxSubCat = subCat.length ? subCat[0][1] : 1;
 
     deptDetailEl.innerHTML = `
+      <div class="desc" style="margin-top:16px; margin-bottom:6px; font-weight:600; border-top:1px solid var(--border); padding-top:14px;">Сонгосон хэлтсийн дэлгэрэнгүй</div>
       <div class="deptStatRow">
         <div class="deptStat">
           <div class="lbl">Нийт дуудлага</div>
