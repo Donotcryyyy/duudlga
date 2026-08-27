@@ -336,16 +336,16 @@
       </div>
 
       <div class="panel">
-        <h2>Хэрэглэгчээр авсан дуудлага</h2>
-        <div class="desc">Үүсгэсэн хэрэглэгч тус бүрийн нийт бүртгэсэн дуудлагын тоо</div>
+        <h2>Гүйцэтгэгчээр авсан дуудлага</h2>
+        <div class="desc">Гүйцэтгэгч тус бүрийн нийт шийдвэрлэсэн дуудлагын тоо</div>
         <div id="userTableWrap"></div>
         <div class="pagination" id="userPagination"></div>
       </div>
     </div>
 
     <div class="panel">
-      <h2>Гүйцэтгэгч тус бүрээр <span class="tag">гүйцэтгэсэн ажлын тоо</span></h2>
-      <div class="desc">Гүйцэтгэгч тус бүрийн шийдвэрлэсэн дуудлагын тоо ба дундаж зарцуулсан цаг</div>
+      <h2>Хэрэглэгчээр авсан дуудлага <span class="tag">үүсгэсэн хэрэглэгч</span></h2>
+      <div class="desc">Үүсгэсэн хэрэглэгч тус бүрийн нийт бүртгэсэн дуудлагын тоо ба дундаж зарцуулсан цаг</div>
       <div id="executorTableWrap"></div>
       <div class="pagination" id="executorPagination"></div>
     </div>
@@ -611,16 +611,16 @@ function render(fileName){
     </div>
   `).join('') : '<div class="empty-note">Өгөгдөл алга</div>';
 
-  // Users table (paginated)
+  // Executor table (paginated) — shown in the primary top panel
   const userTableWrap = document.getElementById('userTableWrap');
   const userPagination = document.getElementById('userPagination');
-  const drawUsers = () => renderPaginatedTable(userTableWrap, userPagination, userCounts, 'Хэрэглэгч', userPage, (p) => { userPage = p; drawUsers(); }, total);
+  const drawUsers = () => renderPaginatedTable(userTableWrap, userPagination, executorCounts, 'Гүйцэтгэгч', userPage, (p) => { userPage = p; drawUsers(); }, total);
   drawUsers();
 
-  // Executor table (paginated)
+  // Created-user table (paginated) — shown in the secondary full-width panel
   const executorTableWrap = document.getElementById('executorTableWrap');
   const executorPagination = document.getElementById('executorPagination');
-  const drawExecutors = () => renderPaginatedTable(executorTableWrap, executorPagination, executorCounts, 'Ажил гүйцэтгэгч', executorPage, (p) => { executorPage = p; drawExecutors(); }, total);
+  const drawExecutors = () => renderPaginatedTable(executorTableWrap, executorPagination, userCounts, 'Хэрэглэгч', executorPage, (p) => { executorPage = p; drawExecutors(); }, total);
   drawExecutors();
 
   // Channel breakdown
