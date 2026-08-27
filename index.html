@@ -129,10 +129,11 @@
   /* KPI strip */
   .kpis{
     display:grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 14px;
     margin: 22px 0;
   }
+  @media (max-width: 1100px){ .kpis{ grid-template-columns: repeat(3, 1fr); } }
   .kpi{
     background: var(--panel);
     border: 1px solid var(--border);
@@ -217,10 +218,11 @@
   .subgrid{
     margin-top: 0;
     display:grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 0.8fr 0.8fr 1.2fr;
     gap: 16px;
   }
-  @media (max-width: 940px){ .subgrid{ grid-template-columns: 1fr; } }
+  @media (max-width: 1100px){ .subgrid{ grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 700px){ .subgrid{ grid-template-columns: 1fr; } }
 
   .chip-list{ display:flex; flex-direction:column; gap:8px; }
   .chip-row{ display:flex; justify-content:space-between; align-items:center; font-size:13px; }
@@ -304,7 +306,7 @@
       <div class="pulse"></div>
       <div>
         <h1>Дуудлагын аналитик самбар</h1>
-        <div class="sub">Ангилал · Суваг · Харилцагчийн хэлтэс · Ажил гүйцэтгэгч · Үүсгэсэн хэрэглэгч · Мэдлэг</div>
+        <div class="sub">Огноо · Төрөл · Ангилал · Суваг · Хэлтэс · Гүйцэтгэгч · Хэрэглэгч · Хугацаа · Мэдлэг</div>
       </div>
     </div>
     <div class="headerRight">
@@ -319,7 +321,7 @@
   <div id="dropzone">
     <div class="icon">⇪</div>
     <div class="title">Excel файлаа энд чирж оруулах эсвэл дарж сонгох</div>
-    <div class="hint">.xlsx / .xls / .csv &nbsp;—&nbsp; Багана: Ангилал, Суваг, Харилцагчийн хэлтэс, Ажил Гүйцэтгэгч, Үүсгэсэн хэрэглэгч, Мэдлэг</div>
+    <div class="hint">.xlsx / .xls / .csv &nbsp;—&nbsp; Багана: Үүсгэсэн огноо, Төрөл, Ангилал, Суваг, Захиалгын дугаар, Харилцагчийн утасны дугаар, Харилцагчийн хэлтэс, Үүсгэсэн хэрэглэгч, Тикетийн агуулга, Шийдвэрлэсэн тодорхойлолт, Гүйцэтгэгч, Төлөвлөсөн огноо, Дууссан хугацаа, Зарцуулсан хугацаа(цаг), Үүсгэсэн хугацаанаас зарцуулсан хугацаа(мин), Мэдлэг</div>
     <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
   </div>
 
@@ -342,8 +344,8 @@
     </div>
 
     <div class="panel">
-      <h2>Ажил гүйцэтгэгчээр <span class="tag">гүйцэтгэсэн ажлын тоо</span></h2>
-      <div class="desc">Ажил гүйцэтгэгч тус бүрийн шийдвэрлэсэн дуудлагын тоо</div>
+      <h2>Гүйцэтгэгч тус бүрээр <span class="tag">гүйцэтгэсэн ажлын тоо</span></h2>
+      <div class="desc">Гүйцэтгэгч тус бүрийн шийдвэрлэсэн дуудлагын тоо ба дундаж зарцуулсан цаг</div>
       <div id="executorTableWrap"></div>
       <div class="pagination" id="executorPagination"></div>
     </div>
@@ -353,6 +355,12 @@
         <h2>Суваг тус бүрээр</h2>
         <div class="desc">Дуудлага хамгийн их ирсэн суваг</div>
         <div class="chip-list" id="channelBreakdown"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Төрөл тус бүрээр</h2>
+        <div class="desc">Хүсэлтийн төрлөөр ангилсан тоо</div>
+        <div class="chip-list" id="typeBreakdown"></div>
       </div>
 
       <div class="panel">
@@ -372,11 +380,21 @@
 
 <script>
 const COL = {
+  createdDate: 'Үүсгэсэн огноо',
+  type: 'Төрөл',
   category: 'Ангилал',
   channel: 'Суваг',
+  orderNumber: 'Захиалгын дугаар',
+  phone: 'Харилцагчийн утасны дугаар',
   dept: 'Харилцагчийн хэлтэс',
-  executor: 'Ажил Гүйцэтгэгч',
   user: 'Үүсгэсэн хэрэглэгч',
+  content: 'Тикетийн агуулга',
+  resolution: 'Шийдвэрлэсэн тодорхойлолт',
+  executor: 'Гүйцэтгэгч',
+  plannedDate: 'Төлөвлөсөн огноо',
+  completedDate: 'Дууссан хугацаа',
+  hoursSpent: 'Зарцуулсан хугацаа(цаг)',
+  minutesFromCreation: 'Үүсгэсэн хугацаанаас зарцуулсан хугацаа(мин)',
   knowledge: 'Мэдлэг'
 };
 
@@ -459,6 +477,14 @@ function getVal(row, key){
   return foundKey ? String(row[foundKey]).trim() : '';
 }
 
+function avgOf(dataset, key){
+  const nums = dataset
+    .map(r => parseFloat(String(getVal(r, key)).replace(',', '.')))
+    .filter(n => !isNaN(n));
+  if (!nums.length) return null;
+  return nums.reduce((a,b) => a+b, 0) / nums.length;
+}
+
 function countBy(dataset, key){
   const map = {};
   dataset.forEach(r => {
@@ -532,6 +558,8 @@ function render(fileName){
   const channelCounts = countBy(rows, COL.channel);
   const deptCounts = countBy(rows, COL.dept);
   const executorCounts = countBy(rows, COL.executor);
+  const typeCounts = countBy(rows, COL.type);
+  const avgHours = avgOf(rows, COL.hoursSpent);
 
   // KPIs
   const kpiStrip = document.getElementById('kpiStrip');
@@ -560,6 +588,11 @@ function render(fileName){
       <div class="eyebrow">Тэргүүлэх ангилал</div>
       <div class="val amber" style="font-size:15px; line-height:32px;">${escapeHtml(catCounts[0] ? catCounts[0][0] : '—')}</div>
       <div class="foot">${catCounts[0] ? catCounts[0][1] + ' дуудлага' : ''}</div>
+    </div>
+    <div class="kpi">
+      <div class="eyebrow">Дундаж зарцуулсан цаг</div>
+      <div class="val amber">${avgHours !== null ? avgHours.toFixed(1) : '—'}</div>
+      <div class="foot">Нэг дуудлагад ноогдох дундаж цаг</div>
     </div>
   `;
 
@@ -593,6 +626,14 @@ function render(fileName){
     <div class="chip-row">
       <div class="name">${escapeHtml(c[0])}</div>
       <div class="count">${c[1]} (${(c[1]/total*100).toFixed(0)}%)</div>
+    </div>
+  `).join('') : '<div class="empty-note">Өгөгдөл алга</div>';
+
+  // Type breakdown
+  document.getElementById('typeBreakdown').innerHTML = typeCounts.length ? typeCounts.map(t => `
+    <div class="chip-row">
+      <div class="name">${escapeHtml(t[0])}</div>
+      <div class="count">${t[1]} (${(t[1]/total*100).toFixed(0)}%)</div>
     </div>
   `).join('') : '<div class="empty-note">Өгөгдөл алга</div>';
 
@@ -669,7 +710,15 @@ function exportReport(){
     userCounts.map(u => ({ 'Хэрэглэгч': u[0], 'Дуудлагын тоо': u[1] }))
   );
   const executorSheet = XLSX.utils.json_to_sheet(
-    executorCounts.map(u => ({ 'Ажил гүйцэтгэгч': u[0], 'Дуудлагын тоо': u[1] }))
+    executorCounts.map(u => {
+      const sub = rows.filter(r => {
+        let v = getVal(r, COL.executor);
+        if (!v) v = '(Тодорхойгүй)';
+        return v === u[0];
+      });
+      const avg = avgOf(sub, COL.hoursSpent);
+      return { 'Гүйцэтгэгч': u[0], 'Дуудлагын тоо': u[1], 'Дундаж зарцуулсан цаг': avg !== null ? avg.toFixed(1) : '' };
+    })
   );
   const deptSheet = XLSX.utils.json_to_sheet(
     deptCounts.map(d => ({ 'Харилцагчийн хэлтэс': d[0], 'Дуудлагын тоо': d[1] }))
