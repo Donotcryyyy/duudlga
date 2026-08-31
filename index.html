@@ -129,7 +129,7 @@
   /* KPI strip */
   .kpis{
     display:grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(8, 1fr);
     gap: 14px;
     margin: 22px 0;
   }
@@ -404,6 +404,13 @@
     </div>
 
     <div class="panel">
+      <h2>Давхардсан дуудлага (утасны дугаараар) <span class="tag">1-ээс дээш удаа холбогдсон</span></h2>
+      <div class="desc">Ижил утасны дугаараас нэгээс олон удаа орж ирсэн дуудлагыг харуулна</div>
+      <div id="phoneTableWrap"></div>
+      <div class="pagination" id="phonePagination"></div>
+    </div>
+
+    <div class="panel">
       <h2>Захиалгын дугаараар <span class="tag">харилцагч тус бүрийн дуудлага</span></h2>
       <div class="desc">Захиалгын дугаар тус бүрээр аль харилцагч хэдэн удаа дуудлага өгснийг харуулна</div>
       <input type="text" class="orderSearch" id="orderSearch" placeholder="Захиалгын дугаар, харилцагч эсвэл утасны дугаараар хайх...">
@@ -473,6 +480,7 @@ let userPage = 1;
 let executorPage = 1;
 let orderPage = 1;
 let datePage = 1;
+let phonePage = 1;
 
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
@@ -598,6 +606,7 @@ function handleFile(file){
       executorPage = 1;
       orderPage = 1;
       datePage = 1;
+      phonePage = 1;
       render(file.name);
     } catch(err){
       statusBox.textContent = 'Уншихад алдаа гарлаа: ' + err.message;
@@ -747,6 +756,70 @@ function groupByOrder(dataset){
   return Object.values(map).sort((a,b) => b.count - a.count);
 }
 
+function groupDuplicatePhones(dataset){
+  const map = {};
+  dataset.forEach(r => {
+    const phone = getVal(r, COL.phone);
+    if (!phone) return;
+    if (!map[phone]){
+      map[phone] = { phone, customer: getVal(r, COL.customer) || '—', count: 0 };
+    }
+    map[phone].count++;
+  });
+  return Object.values(map).filter(p => p.count > 1).sort((a,b) => b.count - a.count);
+}
+
+function renderPhoneTable(wrapEl, pagerEl, entries, page, onPageChange){
+  const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  page = Math.min(page, totalPages);
+  const start = (page - 1) * PAGE_SIZE;
+  const pageItems = entries.slice(start, start + PAGE_SIZE);
+
+  wrapEl.innerHTML = pageItems.length ? `
+    <table>
+      <thead><tr><th>Утасны дугаар</th><th>Харилцагч</th><th class="num">Давтагдсан тоо</th></tr></thead>
+      <tbody>
+        ${pageItems.map(p => `
+          <tr>
+            <td>${escapeHtml(p.phone)}</td>
+            <td>${escapeHtml(p.customer)}</td>
+            <td class="num">${p.count}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : '<div class="empty-note">Давхардсан дуудлага олдсонгүй</div>';
+
+  if (entries.length <= PAGE_SIZE){
+    pagerEl.innerHTML = '';
+    return;
+  }
+
+  let btns = '';
+  for (let p = 1; p <= totalPages; p++){
+    if (p === 1 || p === totalPages || Math.abs(p - page) <= 1){
+      btns += `<button data-page="${p}" class="${p === page ? 'active' : ''}">${p}</button>`;
+    } else if (Math.abs(p - page) === 2){
+      btns += `<span>…</span>`;
+    }
+  }
+
+  pagerEl.innerHTML = `
+    <div>${entries.length} давхардсан дугаар — ${page}/${totalPages} хуудас</div>
+    <div class="pageBtns">
+      <button data-page="${page - 1}" ${page === 1 ? 'disabled' : ''}>‹</button>
+      ${btns}
+      <button data-page="${page + 1}" ${page === totalPages ? 'disabled' : ''}>›</button>
+    </div>
+  `;
+  pagerEl.querySelectorAll('button[data-page]').forEach(b => {
+    b.addEventListener('click', () => {
+      const p = parseInt(b.dataset.page, 10);
+      if (!isNaN(p)) onPageChange(p);
+    });
+  });
+}
+
 function renderOrderTable(wrapEl, pagerEl, entries, page, onPageChange){
   const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
   page = Math.min(page, totalPages);
@@ -825,6 +898,7 @@ function render(fileName){
   const avgMinutes = avgOf(rows, COL.minutesFromCreation);
   const orderGroups = groupByOrder(rows);
   const dateGroups = groupByDate(rows, COL.createdDate);
+  const duplicatePhones = groupDuplicatePhones(rows);
 
   // KPIs
   const kpiStrip = document.getElementById('kpiStrip');
@@ -864,6 +938,11 @@ function render(fileName){
       <div class="val amber">${avgMinutes !== null ? avgMinutes.toFixed(0) : '—'}</div>
       <div class="foot">Минутаар</div>
     </div>
+    <div class="kpi">
+      <div class="eyebrow">Давхардсан дугаар</div>
+      <div class="val teal">${duplicatePhones.length}</div>
+      <div class="foot">1-ээс дээш удаа холбогдсон дугаар</div>
+    </div>
   `;
 
   // Top 10 categories
@@ -896,6 +975,12 @@ function render(fileName){
   const datePagination = document.getElementById('datePagination');
   const drawDates = () => renderPaginatedTable(dateTableWrap, datePagination, dateGroups, 'Огноо', datePage, (p) => { datePage = p; drawDates(); }, total);
   drawDates();
+
+  // Duplicate phone numbers table (paginated)
+  const phoneTableWrap = document.getElementById('phoneTableWrap');
+  const phonePagination = document.getElementById('phonePagination');
+  const drawPhones = () => renderPhoneTable(phoneTableWrap, phonePagination, duplicatePhones, phonePage, (p) => { phonePage = p; drawPhones(); });
+  drawPhones();
 
   // Order-number table (paginated + searchable) — customer + call count per order number
   const orderTableWrap = document.getElementById('orderTableWrap');
@@ -1032,6 +1117,9 @@ function exportReport(){
   const orderSheet = XLSX.utils.json_to_sheet(
     groupByOrder(rows).map(o => ({ 'Захиалгын дугаар': o.order, 'Харилцагч': o.customer, 'Утасны дугаар': o.phone, 'Хэлтэс': o.dept, 'Дуудлагын тоо': o.count }))
   );
+  const phoneSheet = XLSX.utils.json_to_sheet(
+    groupDuplicatePhones(rows).map(p => ({ 'Утасны дугаар': p.phone, 'Харилцагч': p.customer, 'Давтагдсан тоо': p.count }))
+  );
   const rawSheet = XLSX.utils.json_to_sheet(rows);
 
   const wb = XLSX.utils.book_new();
@@ -1040,6 +1128,7 @@ function exportReport(){
   XLSX.utils.book_append_sheet(wb, executorSheet, 'Гүйцэтгэгчээр');
   XLSX.utils.book_append_sheet(wb, deptSheet, 'Хэлтсээр');
   XLSX.utils.book_append_sheet(wb, orderSheet, 'Захиалгын дугаараар');
+  XLSX.utils.book_append_sheet(wb, phoneSheet, 'Давхардсан дугаар');
   XLSX.utils.book_append_sheet(wb, rawSheet, 'Эх өгөгдөл');
 
   XLSX.writeFile(wb, 'duudlagiin_analitik_tailan.xlsx');
