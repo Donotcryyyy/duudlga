@@ -410,14 +410,6 @@
       <div class="pagination" id="phonePagination"></div>
     </div>
 
-    <div class="panel">
-      <h2>Захиалгын дугаараар <span class="tag">харилцагч тус бүрийн дуудлага</span></h2>
-      <div class="desc">Захиалгын дугаар тус бүрээр аль харилцагч хэдэн удаа дуудлага өгснийг харуулна</div>
-      <input type="text" class="orderSearch" id="orderSearch" placeholder="Захиалгын дугаар, харилцагч эсвэл утасны дугаараар хайх...">
-      <div id="orderTableWrap"></div>
-      <div class="pagination" id="orderPagination"></div>
-    </div>
-
     <div class="subgrid">
       <div class="panel">
         <h2>Суваг тус бүрээр</h2>
@@ -981,23 +973,6 @@ function render(fileName){
   const phonePagination = document.getElementById('phonePagination');
   const drawPhones = () => renderPhoneTable(phoneTableWrap, phonePagination, duplicatePhones, phonePage, (p) => { phonePage = p; drawPhones(); });
   drawPhones();
-
-  // Order-number table (paginated + searchable) — customer + call count per order number
-  const orderTableWrap = document.getElementById('orderTableWrap');
-  const orderPagination = document.getElementById('orderPagination');
-  const orderSearchEl = document.getElementById('orderSearch');
-  orderSearchEl.value = '';
-  const drawOrders = () => {
-    const q = orderSearchEl.value.trim().toLowerCase();
-    const filtered = q ? orderGroups.filter(o =>
-      o.order.toLowerCase().includes(q) ||
-      o.customer.toLowerCase().includes(q) ||
-      o.phone.toLowerCase().includes(q)
-    ) : orderGroups;
-    renderOrderTable(orderTableWrap, orderPagination, filtered, orderPage, (p) => { orderPage = p; drawOrders(); });
-  };
-  orderSearchEl.oninput = () => { orderPage = 1; drawOrders(); };
-  drawOrders();
 
   // Channel breakdown
   document.getElementById('channelBreakdown').innerHTML = channelCounts.length ? channelCounts.map(c => `
