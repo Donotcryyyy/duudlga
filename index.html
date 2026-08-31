@@ -397,6 +397,13 @@
     </div>
 
     <div class="panel">
+      <h2>Огноогоор (он, сар, өдөр) <span class="tag">өдөр тутмын дуудлага</span></h2>
+      <div class="desc">Үүсгэсэн огноогоор бүлэглэж, өдөр тутмын дуудлагын тоог он-сар-өдрөөр эрэмбэлэв</div>
+      <div id="dateTableWrap"></div>
+      <div class="pagination" id="datePagination"></div>
+    </div>
+
+    <div class="panel">
       <h2>Захиалгын дугаараар <span class="tag">харилцагч тус бүрийн дуудлага</span></h2>
       <div class="desc">Захиалгын дугаар тус бүрээр аль харилцагч хэдэн удаа дуудлага өгснийг харуулна</div>
       <input type="text" class="orderSearch" id="orderSearch" placeholder="Захиалгын дугаар, харилцагч эсвэл утасны дугаараар хайх...">
@@ -465,6 +472,7 @@ let rows = [];
 let userPage = 1;
 let executorPage = 1;
 let orderPage = 1;
+let datePage = 1;
 
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
@@ -567,12 +575,6 @@ function buildPrintReport(){
 
     <h2>Төрөл тус бүрээр — дундаж хаасан хугацаа (мин)</h2>
     ${table(['Төрөл','Дуудлага','Эзлэх хувь','Дундаж хугацаа (мин)'], typeStats.map(t => [t.label, t.count, fmtPct(t.count, total), t.avg !== null ? t.avg.toFixed(0) : '—']))}
-
-    <h2>Захиалгын дугаараар (${orderGroups.length})</h2>
-    <table>
-      <thead><tr><th>Захиалгын дугаар</th><th>Харилцагч</th><th>Утас</th><th>Хэлтэс</th><th class="num">Дуудлага</th></tr></thead>
-      <tbody>${orderGroups.map(o => `<tr><td>${escapeHtml(o.order)}</td><td>${escapeHtml(o.customer)}</td><td>${escapeHtml(o.phone)}</td><td>${escapeHtml(o.dept)}</td><td class="num">${o.count}</td></tr>`).join('')}</tbody>
-    </table>
   `;
 
   document.getElementById('printReport').innerHTML = html;
@@ -584,7 +586,7 @@ function handleFile(file){
   reader.onload = (e) => {
     try{
       const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, { type: 'array' });
+      const wb = XLSX.read(data, { type: 'array', cellDates: true });
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
       rows = json;
@@ -595,6 +597,7 @@ function handleFile(file){
       userPage = 1;
       executorPage = 1;
       orderPage = 1;
+      datePage = 1;
       render(file.name);
     } catch(err){
       statusBox.textContent = 'Уншихад алдаа гарлаа: ' + err.message;
@@ -611,6 +614,36 @@ function getVal(row, key){
   if (row[key] !== undefined) return String(row[key]).trim();
   const foundKey = Object.keys(row).find(k => k.trim() === key);
   return foundKey ? String(row[foundKey]).trim() : '';
+}
+
+function getDateVal(row, key){
+  let raw = row[key];
+  if (raw === undefined){
+    const foundKey = Object.keys(row).find(k => k.trim() === key);
+    raw = foundKey ? row[foundKey] : undefined;
+  }
+  if (raw === undefined || raw === '') return '';
+  if (raw instanceof Date && !isNaN(raw.getTime())){
+    const y = raw.getFullYear(), m = String(raw.getMonth()+1).padStart(2,'0'), d = String(raw.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(raw).trim();
+  const parsed = new Date(s);
+  if (!isNaN(parsed.getTime()) && /\d{4}/.test(s)){
+    const y = parsed.getFullYear(), m = String(parsed.getMonth()+1).padStart(2,'0'), d = String(parsed.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+  return s;
+}
+
+function groupByDate(dataset, key){
+  const map = {};
+  dataset.forEach(r => {
+    let v = getDateVal(r, key);
+    if (!v) v = '(Тодорхойгүй огноо)';
+    map[v] = (map[v] || 0) + 1;
+  });
+  return Object.entries(map).sort((a,b) => a[0] < b[0] ? -1 : (a[0] > b[0] ? 1 : 0));
 }
 
 function avgOf(dataset, key){
@@ -791,6 +824,7 @@ function render(fileName){
   const avgHours = avgOf(rows, COL.hoursSpent);
   const avgMinutes = avgOf(rows, COL.minutesFromCreation);
   const orderGroups = groupByOrder(rows);
+  const dateGroups = groupByDate(rows, COL.createdDate);
 
   // KPIs
   const kpiStrip = document.getElementById('kpiStrip');
@@ -856,6 +890,12 @@ function render(fileName){
   const executorPagination = document.getElementById('executorPagination');
   const drawExecutors = () => renderPaginatedTable(executorTableWrap, executorPagination, userCounts, 'Хэрэглэгч', executorPage, (p) => { executorPage = p; drawExecutors(); }, total);
   drawExecutors();
+
+  // Date table (paginated) — calls per day, chronological order
+  const dateTableWrap = document.getElementById('dateTableWrap');
+  const datePagination = document.getElementById('datePagination');
+  const drawDates = () => renderPaginatedTable(dateTableWrap, datePagination, dateGroups, 'Огноо', datePage, (p) => { datePage = p; drawDates(); }, total);
+  drawDates();
 
   // Order-number table (paginated + searchable) — customer + call count per order number
   const orderTableWrap = document.getElementById('orderTableWrap');
